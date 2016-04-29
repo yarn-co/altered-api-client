@@ -1,0 +1,14 @@
+{
+  "name": "altered-client",
+  "version": "0.1.0",
+  "description": "js client for alteded-api",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "node-rest-client": "^1.8.0"
+  }
+}
