@@ -61,12 +61,6 @@ var alteredClient = {
 
         this.registerMethod('postToken', 'token', 'POST');
         this.registerMethod('getUser', 'user', 'GET');
-
-        this.events.on('new-notification', function(notification){
-
-          console.log('notification', notification)
-
-        })
     },
 
     addTokenHeader: function(){
@@ -75,7 +69,6 @@ var alteredClient = {
 
             this.headers['Authorization'] = 'Bearer ' + this.token;
         }
-
     },
 
 
