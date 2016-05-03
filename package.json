@@ -1,5 +1,5 @@
 {
-  "name": "altered-client",
+  "name": "altered-api-client",
   "version": "0.1.0",
   "description": "js client for alteded-api",
   "main": "index.js",
