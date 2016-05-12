@@ -6,7 +6,7 @@ var EventEmitter = require('events').EventEmitter;
 var util = require('util');
 
 function MyEmitter() {
-  EventEmitter.call(this);
+    EventEmitter.call(this);
 }
 
 util.inherits(MyEmitter, EventEmitter);
@@ -39,7 +39,25 @@ var alteredClient = {
                 args = {headers: this.headers}
             }
 
-            self.client.methods[name](args, callback);
+            self.client.methods[name](args, function(response){
+
+                console.log('makeMethod', response);
+
+                if(response && response.message && response.mesage == 'Token expired'){
+
+                  console.log('expired token...a . . .a.s.d. . . .');
+
+                  self.refreshToken(function(){
+
+                    console.log('token refreshed.');
+                  })
+
+                }else{
+
+                  callback(response);
+                }
+
+            });
 
         };
 
@@ -59,8 +77,11 @@ var alteredClient = {
 
     registerMethods: function(){
 
-        this.registerMethod('postToken', 'token', 'POST');
+        this.registerMethod('getToken', 'token', 'POST');
+        this.registerMethod('getRefreshToken', 'token/refresh', 'POST');
         this.registerMethod('getUser', 'user', 'GET');
+        this.registerMethod('addInteraction', 'interactions', 'POST');
+        this.registerMethod('updateAvatar', 'avatar', 'POST');
     },
 
     addTokenHeader: function(){
@@ -93,15 +114,21 @@ var alteredClient = {
                 info.data.length === 2 &&
                 typeof info.data[0] === 'string') {
 
-
                 //console.log('event', info.data[0], info.data[1]);
 
                 self.events.emit(info.data[0], info.data[1], { bubbles: false });
             }
         });
+    },
 
+    refreshToken: function(callback){
 
+      var args = {};
 
+      this.getRefreshToken(args, function(data, response){
+
+          console.log('refreshToken', data);
+      });
 
     },
 
@@ -114,7 +141,7 @@ var alteredClient = {
             headers: this.headers
         };
 
-        this.postToken(args, function(data, response){
+        this.getToken(args, function(data, response){
 
             if(data && data.access){
 
@@ -124,18 +151,20 @@ var alteredClient = {
 
                 self.getUser({}, function(user){
 
-                    console.log('user', user);
+                    //console.log('user', user);
 
                     self.primus.send('whoami', function(data2) {
 
-                        console.log('socket says you are', data2);
-                    });
+                        //console.log('socket says you are', data2.user);
 
-                    self.primus.send('subscribe', { type: 'user', id: user.id }, function(data2) {
+                        self.user = data2.user;
 
-                        console.log('subscribed to user', data2);
+                        self.primus.send('subscribe', { type: 'user', id: user.id }, function(data2) {
 
-                        if(callback) callback(undefined, user);
+                            //console.log('subscribed to user', data2);
+
+                            if(callback) callback(undefined, user);
+                        });
                     });
                 });
             }
