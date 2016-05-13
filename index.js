@@ -123,7 +123,7 @@ var alteredClient = {
 
     refreshToken: function(callback){
 
-      var args = {refresh: this.tokens.refresh};
+      var args = {data: {refresh: this.tokens.refresh}};
 
       this.getRefreshToken(args, function(data, response){
 
