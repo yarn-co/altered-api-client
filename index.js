@@ -41,16 +41,16 @@ var alteredClient = {
 
             self.client.methods[name](args, function(response){
 
-                console.log('makeMethod', response);
+                //console.log('makeMethod', response, response.message);
 
-                if(response && response.message && response.mesage == 'Token expired'){
+                if(response && response.message && response.message == 'Token expired'){
 
-                  console.log('expired token...a . . .a.s.d. . . .');
+                    console.log('expired token...a . . .a.s.d. . . .');
 
-                  self.refreshToken(function(){
+                    self.refreshToken(function(){
 
-                    console.log('token refreshed.');
-                  })
+                        console.log('token refreshed.');
+                    });
 
                 }else{
 
