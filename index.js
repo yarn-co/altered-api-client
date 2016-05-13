@@ -86,9 +86,9 @@ var alteredClient = {
 
     addTokenHeader: function(){
 
-        if(this.token){
+        if(this.tokens && this.tokens.access){
 
-            this.headers['Authorization'] = 'Bearer ' + this.token;
+            this.headers['Authorization'] = 'Bearer ' + this.tokens.access;
         }
     },
 
@@ -97,7 +97,7 @@ var alteredClient = {
 
         var self = this;
 
-        this.primus = new Socket(this.config.api + '?token='+ this.token);
+        this.primus = new Socket(this.config.api + '?token='+ this.tokens.access);
 
         this.primus.on('error', function(err) {
             console.error(err);
@@ -123,7 +123,7 @@ var alteredClient = {
 
     refreshToken: function(callback){
 
-      var args = {};
+      var args = {refresh: this.tokens.refresh};
 
       this.getRefreshToken(args, function(data, response){
 
@@ -143,9 +143,11 @@ var alteredClient = {
 
         this.getToken(args, function(data, response){
 
+            console.log('got token', data);
+
             if(data && data.access){
 
-                self.token = data.access;
+                self.tokens = data;
 
                 self.strapPrimus();
 
