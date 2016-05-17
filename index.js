@@ -39,25 +39,41 @@ var alteredClient = {
                 args = {headers: this.headers}
             }
 
-            self.client.methods[name](args, function(response){
+            try{
 
-                //console.log('makeMethod', response, response.message);
+                var request = self.client.methods[name](args, function(response){
 
-                if(response && response.message && response.message == 'Token expired'){
+                    //console.log('makeMethod', response, response.message);
 
-                    console.log('expired token...a . . .a.s.d. . . .');
+                    if(response && response.message && response.message == 'Token expired'){
 
-                    self.refreshToken(function(){
+                        console.log('expired token.');
 
-                        console.log('token refreshed.');
-                    });
+                        self.refreshToken(function(){
 
-                }else{
+                            //retry request after new token:
 
-                  callback(response);
-                }
+                            console.log('token refreshed.');
 
-            });
+                            self[name](args, callback);
+                        });
+
+                    }else{
+
+                      callback(response);
+                    }
+
+                });
+
+                request.on('error', function (err) {
+
+                	console.log('api request failed', err.request.options);
+                });
+
+            }catch(err){
+
+                console.log('api request error', err);
+            }
 
         };
 
@@ -100,12 +116,25 @@ var alteredClient = {
         this.primus = new Socket(this.config.api + '?token='+ this.tokens.access);
 
         this.primus.on('error', function(err) {
+
             console.error(err);
         });
 
         this.primus.on('open', function(data) {
 
             console.log('socket open', data);
+
+            self.subscribe();
+        });
+
+        this.primus.on('reconnect scheduled', function (opts) {
+
+            //self.fire('reconnect-scheduled', opts, { bubbles: false });
+
+            console.log('socket reconnect scheduled');
+
+            self.refreshToken();
+
         });
 
         this.primus.on('data', function(info) {
@@ -123,13 +152,31 @@ var alteredClient = {
 
     refreshToken: function(callback){
 
-      var args = {data: {refresh: this.tokens.refresh}};
+        var self = this;
 
-      this.getRefreshToken(args, function(data, response){
+        var args = {data: {refresh: this.tokens.refresh}};
 
-          console.log('refreshToken', data);
-      });
+        this.getRefreshToken(args, function(data, response){
 
+            self.tokens = data;
+
+            if(callback){
+
+                callback();
+            }
+        });
+    },
+
+    subscribe: function(callback){
+
+        var self = this;
+
+        self.primus.send('subscribe', { type: 'user', id: self.user.id }, function() {
+
+            console.log('subscribed to user', self.user);
+
+            if(callback) callback(undefined, self.user);
+        });
     },
 
     login: function(callback){
@@ -149,11 +196,13 @@ var alteredClient = {
 
                 self.tokens = data;
 
-                self.strapPrimus();
-
                 self.getUser({}, function(user){
 
                     //console.log('user', user);
+
+                    self.user = user;
+
+                    self.strapPrimus();
 
                     self.primus.send('whoami', function(data2) {
 
@@ -161,12 +210,10 @@ var alteredClient = {
 
                         self.user = data2.user;
 
-                        self.primus.send('subscribe', { type: 'user', id: user.id }, function(data2) {
+                        if(callback) callback(undefined, self.user);
 
-                            //console.log('subscribed to user', data2);
+                        //self.subscribe(callback);
 
-                            if(callback) callback(undefined, user);
-                        });
                     });
                 });
             }
