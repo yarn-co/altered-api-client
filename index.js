@@ -109,7 +109,7 @@ var alteredClient = {
     },
 
 
-    strapPrimus: function(){
+    strapPrimus: function(callback){
 
         var self = this;
 
@@ -124,7 +124,7 @@ var alteredClient = {
 
             console.log('socket open', data);
 
-            self.subscribe();
+            self.subscribe(callback);
         });
 
         this.primus.on('reconnect scheduled', function (opts) {
@@ -202,18 +202,19 @@ var alteredClient = {
 
                     self.user = user;
 
-                    self.strapPrimus();
+                    self.strapPrimus(function(){
 
-                    self.primus.send('whoami', function(data2) {
+                        self.primus.send('whoami', function(data2) {
 
-                        //console.log('socket says you are', data2.user);
+                            //console.log('socket says you are', data2.user);
 
-                        self.user = data2.user;
+                            self.user = data2.user;
 
-                        if(callback) callback(undefined, self.user);
+                            if(callback) callback(undefined, self.user);
 
-                        //self.subscribe(callback);
+                            //self.subscribe(callback);
 
+                        });
                     });
                 });
             }
