@@ -1,5 +1,5 @@
 var config = require('./config');
-var alteredClient = require('./index');
+var alteredClient = require('./index')(config);
 var req = require('req-fast');
 var Timer = require('timer.js');
 var timer = new Timer();

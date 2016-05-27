@@ -1,6 +1,5 @@
 var Client = require('node-rest-client').Client;
 var Socket = require('primus.io').createSocket({ transformer: 'sockjs' });
-var config = require('./config');
 
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
@@ -11,219 +10,223 @@ function MyEmitter() {
 
 util.inherits(MyEmitter, EventEmitter);
 
-var alteredClient = {
+var alteredClient = function(config){
 
-    config: config,
-    events: new MyEmitter(),
-    client: new Client(),
-    token: undefined,
-    tokenHeader: undefined,
-    refreshToken: undefined,
-    primus: undefined,
-    headers: { "Content-Type": "application/json" },
+    var ret = {
 
-    makeMethod: function(name){
+        config: config,
+        events: new MyEmitter(),
+        client: new Client(),
+        token: undefined,
+        tokenHeader: undefined,
+        refreshToken: undefined,
+        primus: undefined,
+        headers: { "Content-Type": "application/json" },
 
-        var self = this;
+        makeMethod: function(name){
 
-        var method = function(args, callback){
+            var self = this;
 
-            self.addTokenHeader();
+            var method = function(args, callback){
 
-            if(args){
+                self.addTokenHeader();
 
-                args['headers'] = this.headers;
+                if(args){
 
-            }else{
+                    args['headers'] = this.headers;
 
-                args = {headers: this.headers}
+                }else{
+
+                    args = {headers: this.headers}
+                }
+
+                try{
+
+                    var request = self.client.methods[name](args, function(response){
+
+                        //console.log('makeMethod', response, response.message);
+
+                        if(response && response.message && response.message == 'Token expired'){
+
+                            console.log('expired token.');
+
+                            self.refreshToken(function(){
+
+                                //retry request after new token:
+
+                                console.log('token refreshed.');
+
+                                self[name](args, callback);
+                            });
+
+                        }else{
+
+                          callback(response);
+                        }
+
+                    });
+
+                    request.on('error', function (err) {
+
+                    	console.log('api request failed', err.request.options);
+                    });
+
+                }catch(err){
+
+                    console.log('api request error', err);
+                }
+
+            };
+
+            //method.name = name;
+
+            return method;
+
+        },
+
+        registerMethod: function(name, route, method){
+
+            this.client.registerMethod(name, this.config.api + route, method);
+
+            this[name] = this.makeMethod(name);
+        },
+
+
+        registerMethods: function(){
+
+            this.registerMethod('getToken', 'token', 'POST');
+            this.registerMethod('getRefreshToken', 'token/refresh', 'POST');
+            this.registerMethod('getUser', 'user', 'GET');
+            this.registerMethod('addInteraction', 'interactions', 'POST');
+            this.registerMethod('updateAvatar', 'avatar', 'POST');
+        },
+
+        addTokenHeader: function(){
+
+            if(this.tokens && this.tokens.access){
+
+                this.headers['Authorization'] = 'Bearer ' + this.tokens.access;
             }
+        },
 
-            try{
 
-                var request = self.client.methods[name](args, function(response){
+        strapPrimus: function(callback){
 
-                    //console.log('makeMethod', response, response.message);
+            var self = this;
 
-                    if(response && response.message && response.message == 'Token expired'){
+            this.primus = new Socket(this.config.api + '?token='+ this.tokens.access);
 
-                        console.log('expired token.');
+            this.primus.on('error', function(err) {
 
-                        self.refreshToken(function(){
+                console.error(err);
+            });
 
-                            //retry request after new token:
+            this.primus.on('open', function(data) {
 
-                            console.log('token refreshed.');
+                console.log('socket open', data);
 
-                            self[name](args, callback);
-                        });
+                self.subscribe(callback);
+            });
 
-                    }else{
+            this.primus.on('reconnect scheduled', function (opts) {
 
-                      callback(response);
-                    }
+                //self.fire('reconnect-scheduled', opts, { bubbles: false });
 
-                });
+                console.log('socket reconnect scheduled');
 
-                request.on('error', function (err) {
+                self.refreshToken();
 
-                	console.log('api request failed', err.request.options);
-                });
+            });
 
-            }catch(err){
+            this.primus.on('data', function(info) {
 
-                console.log('api request error', err);
-            }
+                if (Array.isArray(info.data) &&
+                    info.data.length === 2 &&
+                    typeof info.data[0] === 'string') {
 
-        };
+                    //console.log('event', info.data[0], info.data[1]);
 
-        //method.name = name;
+                    self.events.emit(info.data[0], info.data[1], { bubbles: false });
+                }
+            });
+        },
 
-        return method;
+        refreshToken: function(callback){
 
-    },
+            var self = this;
 
-    registerMethod: function(name, route, method){
+            var args = {data: {refresh: this.tokens.refresh}};
 
-        this.client.registerMethod(name, this.config.api + route, method);
-
-        this[name] = this.makeMethod(name);
-    },
-
-
-    registerMethods: function(){
-
-        this.registerMethod('getToken', 'token', 'POST');
-        this.registerMethod('getRefreshToken', 'token/refresh', 'POST');
-        this.registerMethod('getUser', 'user', 'GET');
-        this.registerMethod('addInteraction', 'interactions', 'POST');
-        this.registerMethod('updateAvatar', 'avatar', 'POST');
-    },
-
-    addTokenHeader: function(){
-
-        if(this.tokens && this.tokens.access){
-
-            this.headers['Authorization'] = 'Bearer ' + this.tokens.access;
-        }
-    },
-
-
-    strapPrimus: function(callback){
-
-        var self = this;
-
-        this.primus = new Socket(this.config.api + '?token='+ this.tokens.access);
-
-        this.primus.on('error', function(err) {
-
-            console.error(err);
-        });
-
-        this.primus.on('open', function(data) {
-
-            console.log('socket open', data);
-
-            self.subscribe(callback);
-        });
-
-        this.primus.on('reconnect scheduled', function (opts) {
-
-            //self.fire('reconnect-scheduled', opts, { bubbles: false });
-
-            console.log('socket reconnect scheduled');
-
-            self.refreshToken();
-
-        });
-
-        this.primus.on('data', function(info) {
-
-            if (Array.isArray(info.data) &&
-                info.data.length === 2 &&
-                typeof info.data[0] === 'string') {
-
-                //console.log('event', info.data[0], info.data[1]);
-
-                self.events.emit(info.data[0], info.data[1], { bubbles: false });
-            }
-        });
-    },
-
-    refreshToken: function(callback){
-
-        var self = this;
-
-        var args = {data: {refresh: this.tokens.refresh}};
-
-        this.getRefreshToken(args, function(data, response){
-
-            self.tokens = data;
-
-            if(callback){
-
-                callback();
-            }
-        });
-    },
-
-    subscribe: function(callback){
-
-        var self = this;
-
-        self.primus.send('subscribe', { type: 'user', id: self.user.id }, function() {
-
-            console.log('subscribed to user', self.user);
-
-            if(callback) callback(undefined, self.user);
-        });
-    },
-
-    login: function(callback){
-
-        var self = this;
-
-        var args = {
-            data: { username: this.config.username, password: this.config.password},
-            headers: this.headers
-        };
-
-        this.getToken(args, function(data, response){
-
-            console.log('got token', data);
-
-            if(data && data.access){
+            this.getRefreshToken(args, function(data, response){
 
                 self.tokens = data;
 
-                self.getUser({}, function(user){
+                if(callback){
 
-                    //console.log('user', user);
+                    callback();
+                }
+            });
+        },
 
-                    self.user = user;
+        subscribe: function(callback){
 
-                    self.strapPrimus(function(){
+            var self = this;
 
-                        self.primus.send('whoami', function(data2) {
+            self.primus.send('subscribe', { type: 'user', id: self.user.id }, function() {
 
-                            //console.log('socket says you are', data2.user);
+                console.log('subscribed to user', self.user);
 
-                            self.user = data2.user;
+                if(callback) callback(undefined, self.user);
+            });
+        },
 
-                            if(callback) callback(undefined, self.user);
+        login: function(callback){
 
-                            //self.subscribe(callback);
+            var self = this;
 
+            var args = {
+                data: { username: this.config.username, password: this.config.password},
+                headers: this.headers
+            };
+
+            this.getToken(args, function(data, response){
+
+                console.log('got token', data);
+
+                if(data && data.access){
+
+                    self.tokens = data;
+
+                    self.getUser({}, function(user){
+
+                        //console.log('user', user);
+
+                        self.user = user;
+
+                        self.strapPrimus(function(){
+
+                            self.primus.send('whoami', function(data2) {
+
+                                //console.log('socket says you are', data2.user);
+
+                                self.user = data2.user;
+
+                                if(callback) callback(undefined, self.user);
+
+                                //self.subscribe(callback);
+
+                            });
                         });
                     });
-                });
-            }
-        });
-    }
+                }
+            });
+        }
+    };
+
+    ret.registerMethods();
+
+    return ret;
 }
 
-
-
-alteredClient.registerMethods();
 
 module.exports = alteredClient;
