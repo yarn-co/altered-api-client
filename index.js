@@ -125,7 +125,10 @@ var alteredClient = function(config){
 
                 console.log('socket open', data);
 
-                self.subscribe(callback);
+                if(!self.reconnecting){
+
+                    self.subscribe(callback);
+                }
             });
 
             this.primus.on('reconnect scheduled', function (opts) {
@@ -134,7 +137,14 @@ var alteredClient = function(config){
 
                 console.log('socket reconnect scheduled');
 
-                self.refreshToken();
+                self.reconnecting = true;
+
+                self.refreshToken(function(){
+
+                    self.reconnecting = false;
+
+                    self.subscribe(callback);
+                });
 
             });
 
@@ -199,7 +209,7 @@ var alteredClient = function(config){
 
                     self.getUser({}, function(user){
 
-                        //console.log('user', user);
+                        console.log('user', user);
 
                         self.user = user;
 
@@ -207,7 +217,7 @@ var alteredClient = function(config){
 
                             self.primus.send('whoami', function(data2) {
 
-                                //console.log('socket says you are', data2.user);
+                                console.log('socket says you are', data2);
 
                                 self.user = data2.user;
 
