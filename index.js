@@ -99,6 +99,7 @@ var alteredClient = function(config){
             this.registerMethod('getUser', 'user', 'GET');
             this.registerMethod('addInteraction', 'interactions', 'POST');
             this.registerMethod('updateAvatar', 'avatar', 'POST');
+            this.registerMethod('avatarFriends', 'avatar/friends/${id}', 'PUT');
         },
 
         addTokenHeader: function(){
@@ -108,7 +109,6 @@ var alteredClient = function(config){
                 this.headers['Authorization'] = 'Bearer ' + this.tokens.access;
             }
         },
-
 
         strapPrimus: function(callback){
 
