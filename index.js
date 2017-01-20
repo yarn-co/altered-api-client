@@ -100,6 +100,7 @@ var alteredClient = function(config){
             this.registerMethod('addInteraction', 'interactions', 'POST');
             this.registerMethod('updateAvatar', 'avatar', 'POST');
             this.registerMethod('avatarFriends', 'avatar/friends/${id}', 'PUT');
+            this.registerMethod('avatarAdversaries', 'avatar/adversaries/${id}', 'PUT');
         },
 
         addTokenHeader: function(){
