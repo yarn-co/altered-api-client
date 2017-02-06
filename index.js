@@ -220,9 +220,20 @@ var alteredClient = function(config){
 
                                 console.log('socket says you are', data2);
 
-                                self.user = data2.user;
+                                if(data2){
 
-                                if(callback) callback(undefined, self.user);
+                                  self.user = data2.user;
+
+                                  if(callback) callback(undefined, self.user);
+
+                                }else{
+
+                                  console.log('whoami failed, retrying login');
+
+                                  self.login(callback);
+                                }
+
+
 
                                 //self.subscribe(callback);
 
