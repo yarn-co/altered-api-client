@@ -69,6 +69,8 @@ var alteredClient = function(config){
                     request.on('error', function (err) {
 
                     	console.log('api request failed', err.request.options);
+
+                      callback(err);
                     });
 
                 }catch(err){
@@ -138,6 +140,7 @@ var alteredClient = function(config){
 
                 console.log('socket reconnect scheduled');
 
+                /*
                 self.reconnecting = true;
 
                 self.refreshToken(function(){
@@ -146,6 +149,7 @@ var alteredClient = function(config){
 
                     self.subscribe(callback);
                 });
+                */
 
             });
 
@@ -160,6 +164,26 @@ var alteredClient = function(config){
                     self.events.emit(info.data[0], info.data[1], { bubbles: false });
                 }
             });
+
+            this.primus.on('disconnection', function (opts) {
+
+                console.log('socket disconnection');
+            });
+
+            this.primus.on('close', function (opts) {
+
+                console.log('socket close');
+            });
+
+            this.primus.on('heartbeat', function (opts) {
+
+                console.log('socket heartbeat');
+            });
+
+            this.primus.on('offline', function (opts) {
+
+                console.log('socket offline');
+            });
         },
 
         refreshToken: function(callback){
@@ -169,6 +193,8 @@ var alteredClient = function(config){
             var args = {data: {refresh: this.tokens.refresh}};
 
             this.getRefreshToken(args, function(data, response){
+
+                console.log('getRefreshToken', response);
 
                 self.tokens = data;
 

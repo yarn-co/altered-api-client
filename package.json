@@ -14,7 +14,7 @@
   "license": "YRN",
   "dependencies": {
     "node-rest-client": "^1.8.0",
-    "primus": "^4.0.5",
+    "primus": "^6.0.9",
     "primus-emitter": "^3.1.1",
     "primus.io": "^3.2.0",
     "req-fast": "^0.2.14",
