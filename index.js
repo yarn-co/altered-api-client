@@ -115,9 +115,26 @@ var alteredClient = function(config){
 
         strapPrimus: function(callback){
 
+            //if primus has already been strapped, don't do it again
+            if(this.primus && this.primus.strapped){
+
+                console.log('primus is already strapped');
+
+                if(callback){
+
+                  callback();
+                }
+
+                return;
+            }
+
             var self = this;
 
+            console.log('strapping primus');
+
             this.primus = new Socket(this.config.api + '?token='+ this.tokens.access);
+
+            this.primus.strapped = true;
 
             this.primus.on('error', function(err) {
 
@@ -128,10 +145,8 @@ var alteredClient = function(config){
 
                 console.log('socket open', data);
 
-                if(!self.reconnecting){
+                self.subscribe(callback);
 
-                    self.subscribe(callback);
-                }
             });
 
             this.primus.on('reconnect scheduled', function (opts) {
@@ -140,16 +155,15 @@ var alteredClient = function(config){
 
                 console.log('socket reconnect scheduled');
 
-                /*
-                self.reconnecting = true;
+                //self.reconnecting = true;
 
-                self.refreshToken(function(){
+                /*self.refreshToken(function(){
 
-                    self.reconnecting = false;
+                    //self.reconnecting = false;
 
-                    self.subscribe(callback);
-                });
-                */
+                    //self.subscribe(callback);
+                });*/
+
 
             });
 
@@ -184,6 +198,21 @@ var alteredClient = function(config){
 
                 console.log('socket offline');
             });
+
+            this.primus.on('outgoing::url', function (url) {
+
+              // On reconnects, update the credentials
+              if (self._latestAccessToken) {
+                url.query = 'token=' + self._latestAccessToken;
+                self._latestAccessToken = null;
+              }
+            });
+
+            if(callback){
+
+              callback();
+            }
+
         },
 
         refreshToken: function(callback){
@@ -197,6 +226,8 @@ var alteredClient = function(config){
                 console.log('getRefreshToken', response);
 
                 self.tokens = data;
+
+                self._latestAccessToken = self.tokens.access;
 
                 if(callback){
 
